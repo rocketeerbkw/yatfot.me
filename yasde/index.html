@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>YASDE</title>
+    <style type="text/css">
+      canvas, img {
+        border: 1px solid black;
+        margin: 1px;
+        padding: 0;
+      }
+      #progress_bar {
+    margin: 10px 0;
+    padding: 3px;
+    border: 1px solid #000;
+    font-size: 14px;
+    clear: both;
+    opacity: 0;
+    -moz-transition: opacity 1s linear;
+    -o-transition: opacity 1s linear;
+    -webkit-transition: opacity 1s linear;
+  }
+  #progress_bar.loading {
+    opacity: 1.0;
+  }
+  #progress_bar .percent {
+    background-color: #99ccff;
+    height: auto;
+    width: 0;
+  }
+
+      * { box-sizing: border-box;}
+
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      aside {
+        width: 200px;
+        border-right: 1px solid #ccc;
+        height: 100%;
+        float: left;
+      }
+
+      main {
+        margin-left: 210px;
+        height: 100%;
+      }
+    </style>
+    <script src="js/DataStream.js"></script>
+    <script src="js/q.min.js"></script>
+    <script src="js/TibiaSpriteFile.js"></script>
+
+  </head>
+  <body>
+    <aside>
+      <h1>YASDE<sup>Super Alpha</sup></h1>
+      <input type="file" id="spr_upload">
+
+      <div id="log"><textarea rows="20">Only works for Tibia.spr v9.86. Only shows first 20000 sprites. Lots of unnecessary repaints. No error handling. You should probably open the console. Enjoy!
+
+</textarea></div>
+    </aside>
+    <main></main>
+
+    <script>
+      function log(msg) {
+        var box = document.querySelectorAll('#log textarea')[0];
+        box.innerHTML += msg + '\n';
+      }
+      var pixel = ['r', 'uint16', 'g', 'uint16', 'b', 'uint16'];
+
+      log('ready to begin...');
+      log('please upload your Tibia.spr');
+
+      document.getElementById('spr_upload').addEventListener('change', function(e) {
+
+        /* Sudo Code
+        var tsf = new TibiaSpriteFile();
+        tsf.setFile(file)
+        .then(tsf.parseHeader())
+        .then(tsf.loadFullParser())
+        */
+        tsf = new TibiaSpriteFile(Q);
+        tsf.setFile(e.target.files[0])
+        .parseHeader()
+        .then(function() { return tsf.loadFullParser() })
+        .then(function() { return tsf.loadFullFile() })
+        .then(function() {
+          log('ready to parse');
+          tsf.parser = new TibiaSpriteParser(tsf.fileArrayBuffer);
+
+          console.time('add placeholder imgs');
+
+          var imgs = document.createElement('div');
+          for (var i = 1, items = 20000; i <= items; i++) {
+            var img = document.createElement('img');
+            img.width = '32';
+            img.height = '32';
+            img.id = 'sprite_' + i;
+            img.dataset.spriteid = i;
+            img.src = null;
+            img.click = function() {
+              if (!this.src) {
+                this.src = tsf.spriteAsImage(this.dataset.spriteid);
+              }
+            }
+            imgs.appendChild(img);
+            img = null;
+          }
+
+          document.getElementsByTagName('main')[0].appendChild(imgs);
+
+          console.timeEnd('add placeholder imgs');
+
+          var script = document.createElement("script");
+          script.type = "text/javascript";
+          script.async = true;
+          script.src = 'js/lazyload.js';
+          var s = document.getElementsByTagName("script")[0];
+          s.parentNode.insertBefore(script, s);
+        })
+        /*
+        .then(function() {
+          log('ready to parse');
+          tsf.parser = new TibiaSpriteParser(tsf.fileArrayBuffer);
+          //tsf.renderImages(1, 7, document.getElementsByTagName('main')[0]);
+          tsf.renderAllTimeout(100, document.getElementsByTagName('main')[0]);
+        });
+        /*
+        .then(function() {
+          log('ready to parse');
+
+          window.tsp = new TibiaSpriteParser(tsf.fileArrayBuffer);
+          log('found ' + tsp.getNumItems() + ' items');
+
+          log('drawing item 2');
+          px = window.tsp.getItemPixels(2);
+
+          // Create a canvas element
+          canvas = document.createElement('canvas');
+          canvas.width = 32;
+          canvas.height = 32;
+
+          // Get the 2d context of our canvas
+          ctx = canvas.getContext('2d');
+
+          // Get a structure to hold our pixels
+          imgData = ctx.createImageData(32, 32);
+
+          for (var i = 0; i < px.length; i++) {
+            imgData.data[i] = px[i];
+          }
+
+          console.log(imgData);
+
+          // Write our pixel data to canvas
+          ctx.putImageData(imgData, 0, 0);
+
+          // Create an image from canvas
+          var img = document.createElement('img');
+          img.src = canvas.toDataURL();
+
+          document.getElementsByTagName('main')[0].appendChild(img);
+
+
+        })
+*/
+        //.fail(function(error) { console.log(error); });
+        //.then(tsf.loadFullParser());
+
+
+        var file = e.target.files[0];
+        var reader = new FileReader();
+        var progress = document.getElementById('progress');
+
+        reader.onloadstart = function(e) {
+          console.time('reading file');
+          log('Loading file into memory...');
+        }
+
+        reader.onload = function(e) {
+          console.timeEnd('reading file');
+          log('Loading sprites from file...');
+        }
+
+
+
+        reader.onload = function (e) {
+          console.time('whole thing');
+          var ds = new DataStream(e.target.result);
+          ds.endianness = DataStream.LITTLE_ENDIAN;
+          ds.seek(4);
+          var numSprites = ds.readUint32();
+          //console.log('# Sprites', numSprites);
+
+          // Create a offline doc fragment
+          var imgs = document.createElement('div');
+
+          // Create a canvas element
+          var canvas = document.createElement('canvas');
+          canvas.id = 'sId' + sId;
+          canvas.width = 32;
+          canvas.height = 32;
+          document.getElementsByTagName('main')[0].appendChild(canvas);
+
+          // Get the 2d context of our canvas
+          var ctx = canvas.getContext('2d');
+
+          // Get a structure to hold our pixels
+          var imgData = ctx.createImageData(32, 32);
+          imgData.lastByte = 0;
+
+          for (var sId = 2; sId < 10; sId++) {
+            //console.log('processing sprite ' + sId);
+
+            // Get the offset for this sprites pixel data
+            var sData = (8 + (sId - 1) * 4);
+            //console.log('sData', sData);
+            ds.seek(sData);
+
+            var offset = ds.readUint32(sData);
+            //console.log('offset', offset);
+
+            if (offset == 0) continue;
+            ds.seek(offset);
+
+            // Get the color that should be rendered transparent
+            var tColor = ds.readUint8Array(3)
+            //console.log('tColor', tColor);
+
+            // Get the size of the sprite
+            var sSize = ds.readUint16();
+            //console.log('sSize', sSize);
+
+            if (sSize == 0) continue;
+
+            var targetOffset = ds.position + sSize;
+            //console.log(ds.position, targetOffset);
+            while (ds.position < targetOffset) {
+              // How many transparent pixels in a row?
+              var numT = ds.readUint16();
+              //console.log('t', numT);
+
+              // Write transparent pixels to pixel array
+              for (i = 0; i < numT; i++) {
+                addTransparent(imgData);
+              }
+
+              //console.log('a', ds.position);
+
+              // How many colored pixels in a row?
+              var numC = ds.readUint16();
+              //console.log('numC', numC);
+
+              //console.log('b', ds.position);
+
+              for (i = 0; i < numC; i++) {
+                addColor(imgData, ds.readUint8(), ds.readUint8(), ds.readUint8());
+              }
+
+              //console.log('c', ds.position);
+
+            }
+
+            //console.log('imgData', imgData);
+
+            // Write our pixel data to canvas
+            ctx.putImageData(imgData, 0, 0);
+
+            // Create an image from canvas
+            var img = document.createElement('img');
+            img.src = canvas.toDataURL();
+            imgs.appendChild(img);
+            imgData.lastByte = 0;
+          }
+
+          document.getElementsByTagName('main')[0].appendChild(imgs);
+          console.timeEnd('whole thing');
+        }
+
+        //reader.readAsArrayBuffer(file);
+      }, false);
+
+    function setPixel(imageData, x, y, r, g, b, a) {
+        index = (x + y * imageData.width) * 4;
+        imageData.data[index+0] = r;
+        imageData.data[index+1] = g;
+        imageData.data[index+2] = b;
+        imageData.data[index+3] = a;
+    }
+
+    function addTransparent(imageData) {
+      if (!imageData.lastByte) imageData.lastByte = 0;
+      imageData.data[imageData.lastByte++] = 255;
+      imageData.data[imageData.lastByte++] = 0;
+      imageData.data[imageData.lastByte++] = 255;
+      imageData.data[imageData.lastByte++] = 255;
+    }
+
+    function addColor(imageData, r, g, b) {
+      if (!imageData.lastByte) imageData.lastByte = 0;
+      imageData.data[imageData.lastByte++] = r;
+      imageData.data[imageData.lastByte++] = g;
+      imageData.data[imageData.lastByte++] = b;
+      imageData.data[imageData.lastByte++] = 255;
+    }
+
+    </script>
+  </body>
+</html>
